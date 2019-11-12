@@ -1,49 +1,115 @@
 const express = require('express')
 const app = express()
+app.use(express.json());
 
 const cluster = require('cluster')
-let workers = [];
+const REVERSE_ID = 1
+const UPPERCASE_ID = 2
+
+const isValid = typeNumber => {
+    if (typeNumber >= 1 && typeNumber <= 2) {
+        return true
+    } else {
+        return false
+    }
+}
+
+
 
 if (cluster.isMaster) {
 
-    cluster.on('message', (worker, msg) => {
-        console.log(msg)
-    })
+    app.post('/', (req, res) => {
+        if (req.body && req.body.type && Number.isInteger(req.body.type)) {
+            const typeNumber = parseInt(req.body.type);
+            if (isValid(typeNumber)) {
+                const data = {
+                    res: res,
+                    msg: req.body.msg
+                }
+                cluster.workers[req.body.type].send(req.body.msg);
 
-    app.get('/', (req, res) => {
-        eachWorker(worker => {
-            worker.send('big announcement to all workers');
-        });
+                const msgHandler = (worker, msg) => {
+                    res.status(200).send(msg)
+                    cluster.removeListener('message', msgHandler)
+                }
 
-        res.status(200).send();
-    })
-
-    const eachWorker = callback => {
-        for (const id in cluster.workers) {
-          callback(cluster.workers[id]);
+                cluster.on('message', msgHandler)
+            } else {
+                res.status(400).send('Invalid type');
+            }
         }
-      }
+    })
 
-    
 
-    app.listen(8000, () => {
+    //What is the average time for sending 50 messages between two nodes (random payload)?
+    app.post("/50", async (req, res) => {
+
+        const start = new Date().getTime()
+        const typeNumber = parseInt(req.body.type)
+
+
+        if (isValid(typeNumber)) {
+            const data = {
+                res: res,
+                msg: req.body.msg
+            }
+            const returned = await sendMsg(req.body.type, req.body.msg, 0)
+            const resulttime = new Date().getTime() - start;
+            res.status(200).send(resulttime.toString() + 'ms')
+        } else {
+            res.status(400).send('Invalid type');
+        }
+    })
+
+    const sendMsg = (id, msg, count) => {
+        return new Promise((resolve, reject, ) => {
+            let string = ""
+            for (let i = 0; i < Math.floor(Math.random() * 99) + 1; i++) {
+                string += Math.random().toString(36).replace(/[^a-z]+/g, '')
+            }
+
+            msg = string
+
+            // console.log('original: ', msg, count, msg.length)
+            cluster.workers[id].send(msg)
+
+            const msgHandler = async (worker, msg) => {
+                // console.log('final: ', msg)
+                cluster.removeListener('message', msgHandler)
+                if (count < 50) {
+                    const result = await sendMsg(id, msg, count + 1)
+                    resolve(result)
+                } else {
+                    resolve(msg)
+                }
+            }
+
+            cluster.on('message', msgHandler)
+        })
+    }
+
+    app.listen(8080, () => {
         console.log('Listening port 8000')
     })
 
     for (let i = 0; i < 2; i++) {
-        workers.push(cluster.fork());
+        cluster.fork();
     }
 
-} else if (cluster.worker.id === 1) {
+} else if (cluster.worker.id === REVERSE_ID) {
 
     console.log('Worker ' + cluster.worker.id + ' is listening');
     process.on('message', (msg) => {
-        process.send('got it')
+        const splitted = msg.split("")
+        const reverse = splitted.reverse()
+        const reversed = reverse.join("")
+        process.send(reversed)
     })
-}else if (cluster.worker.id === 2) {
+
+} else if (cluster.worker.id === UPPERCASE_ID) {
 
     console.log('Worker ' + cluster.worker.id + ' is listening');
     process.on('message', (msg) => {
-        process.send('huehuehue')
+        process.send(msg.toUpperCase())
     })
-}
+} 
