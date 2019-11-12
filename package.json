@@ -15,5 +15,9 @@
   "bugs": {
     "url": "https://github.com/Ouzii/distributed-roshanbo/issues"
   },
-  "homepage": "https://github.com/Ouzii/distributed-roshanbo#readme"
+  "homepage": "https://github.com/Ouzii/distributed-roshanbo#readme",
+  "dependencies": {
+    "cluster": "^0.7.7",
+    "express": "^4.17.1"
+  }
 }
