@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
@@ -15,9 +16,14 @@
   "bugs": {
     "url": "https://github.com/Ouzii/distributed-roshanbo/issues"
   },
+<<<<<<< HEAD
   "homepage": "https://github.com/Ouzii/distributed-roshanbo#readme",
   "dependencies": {
     "cluster": "^0.7.7",
     "express": "^4.17.1"
   }
 }
+=======
+  "homepage": "https://github.com/Ouzii/distributed-roshanbo#readme"
+}
+>>>>>>> f3168d5d174c6f601315f741a01041faee3b3b29
