@@ -7,6 +7,9 @@ const REVERSE_ID = 1
 const UPPERCASE_ID = 2
 
 const isValid = typeNumber => {
+    if (!Number.isInteger(typeNumber)) {
+        return false
+    }
     if (typeNumber >= 1 && typeNumber <= 2) {
         return true
     } else {
@@ -19,14 +22,13 @@ const isValid = typeNumber => {
 if (cluster.isMaster) {
 
     app.post('/', (req, res) => {
-        if (req.body && req.body.type && Number.isInteger(req.body.type)) {
+        if (req.body && req.body.type) {
             const typeNumber = parseInt(req.body.type);
             if (isValid(typeNumber)) {
                 const data = {
-                    res: res,
                     msg: req.body.msg
                 }
-                cluster.workers[req.body.type].send(req.body.msg);
+                cluster.workers[req.body.type].send(JSON.stringify(data));
 
                 const msgHandler = (worker, msg) => {
                     res.status(200).send(msg)
@@ -61,6 +63,47 @@ if (cluster.isMaster) {
         }
     })
 
+    // Counts execute time for 25 empty messages.
+    app.post("/min", async (req, res) => {
+        const msg = ""
+
+
+        const start = new Date().getTime()
+        const typeNumber = parseInt(req.body.type)
+        if (isValid(typeNumber)) {
+            const returned = await sendMinimalMessages(req.body.type, msg, 0)
+            const resulttime = new Date().getTime() - start;
+            res.status(200).send(resulttime.toString() + 'ms')
+        } else {
+            res.status(400).send('Invalid type');
+        }
+    })
+
+
+    const sendMinimalMessages = (id, msg, count) => {
+        return new Promise((resolve, reject, ) => {
+
+            cluster.workers[id].send(JSON.stringify({msg: msg}))
+
+            const msgHandler = async (worker, msg) => {
+                // console.log('final: ', msg)
+                cluster.removeListener('message', msgHandler)
+                if (count < 25) {
+                    const result = await sendMinimalMessages(id, msg, count + 1)
+                    resolve(result)
+                } else {
+                    resolve(msg)
+                }
+            }
+
+            cluster.on('message', msgHandler)
+        })
+    }
+
+
+
+
+
     const sendMsg = (id, msg, count) => {
         return new Promise((resolve, reject, ) => {
             let string = ""
@@ -71,7 +114,7 @@ if (cluster.isMaster) {
             msg = string
 
             // console.log('original: ', msg, count, msg.length)
-            cluster.workers[id].send(msg)
+            cluster.workers[id].send(JSON.stringify({msg: msg}))
 
             const msgHandler = async (worker, msg) => {
                 // console.log('final: ', msg)
@@ -88,8 +131,20 @@ if (cluster.isMaster) {
         })
     }
 
+    app.get('/time', (req, res) => {
+        const start = new Date().getTime()
+
+        cluster.workers[1].send(JSON.stringify({msg: 'giveTime', start}))
+        
+        const msgHandler = (worker, msg) => {
+            cluster.removeListener('message', msgHandler)
+            res.status(200).send(msg.toString()+'ms');
+        }
+        cluster.on('message', msgHandler)
+    })
+
     app.listen(8080, () => {
-        console.log('Listening port 8000')
+        console.log('Listening port 8080')
     })
 
     for (let i = 0; i < 2; i++) {
@@ -100,16 +155,23 @@ if (cluster.isMaster) {
 
     console.log('Worker ' + cluster.worker.id + ' is listening');
     process.on('message', (msg) => {
+        const objMsg = JSON.parse(msg)
+        if (objMsg.msg === 'giveTime') {
+            process.send(new Date().getTime()-objMsg.start)
+        } else {
+        const msg = objMsg.msg
         const splitted = msg.split("")
         const reverse = splitted.reverse()
         const reversed = reverse.join("")
         process.send(reversed)
+        }
     })
 
 } else if (cluster.worker.id === UPPERCASE_ID) {
 
     console.log('Worker ' + cluster.worker.id + ' is listening');
     process.on('message', (msg) => {
-        process.send(msg.toUpperCase())
+        const objMsg = JSON.parse(msg)
+        process.send(objMsg.msg.toUpperCase())
     })
 } 
