@@ -35,7 +35,7 @@ if (cluster.isMaster) {
                     cluster.removeListener('message', msgHandler)
                 }
 
-                cluster.on('message', msgHandler)
+                cluster.workers[req.body.type].on('message', msgHandler)
             } else {
                 res.status(400).send('Invalid type');
             }
@@ -96,7 +96,7 @@ if (cluster.isMaster) {
                 }
             }
 
-            cluster.on('message', msgHandler)
+            cluster.workers[id].on('message', msgHandler)
         })
     }
 
@@ -127,7 +127,7 @@ if (cluster.isMaster) {
                 }
             }
 
-            cluster.on('message', msgHandler)
+            cluster.workers[id].on('message', msgHandler)
         })
     }
 
@@ -140,7 +140,7 @@ if (cluster.isMaster) {
             cluster.removeListener('message', msgHandler)
             res.status(200).send(msg.toString()+'ms');
         }
-        cluster.on('message', msgHandler)
+        cluster.workers[1].on('message', msgHandler)
     })
 
     app.listen(8080, () => {
