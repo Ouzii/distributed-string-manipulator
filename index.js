@@ -18,21 +18,21 @@ const isValid = typeNumber => {
     }
 }
 
-const createTestData = () => {
+const createTestData = (maxLength, amount) => {
 
     let testData = []
 
-    for (let index = 0; index < 50; index++) {
+    for (let index = 0; index < amount; index++) {
         let string = ""
-        for (let i = 0; i < Math.floor(Math.random() * 100) + 1; i++) {
+        for (let i = 0; i < Math.floor(Math.random() * 50) + 1; i++) {
             string += Math.random().toString(36).replace(/[^a-z]+/g, '')
         }
 
-        for (let index = 0; index < 10; index++) {
+        for (let index = 0; index < 15; index++) {
             string += string
         }
 
-        testData.push(string)
+        testData.push(string.substr(0, maxLength))
 
     }
     console.log('TestData created');
@@ -57,7 +57,7 @@ const createTestData = () => {
 // type 1 requests are delegated to reversing node
 // type 2 requests are delegated to uppercasing node
 if (cluster.isMaster) {
-    const testData = createTestData()
+    const testData = createTestData(100000, 50)
 
     app.post('/', (req, res) => {
         if (req.body && req.body.type) {
@@ -85,7 +85,7 @@ if (cluster.isMaster) {
     app.post("/50", async (req, res) => {
         const typeNumber = parseInt(req.body.type)
         if (isValid(typeNumber)) {
-            const maxLength = typeof(req.body.msg) === 'string' ? req.body.msg.length : Number.isInteger(req.body.msg) ? req.body.msg : 20
+            const maxLength = typeof (req.body.msg) === 'string' ? req.body.msg.length : Number.isInteger(req.body.msg) ? req.body.msg : 20
             const returned = await notRecursiveSendMsg(req.body.type, formRandomStrings(maxLength, 50))
             res.status(200).send(returned.toString() + 'ns')
         } else {
@@ -137,7 +137,7 @@ if (cluster.isMaster) {
             for (let i = 0; i < Math.floor(Math.random() * 99) + 1; i++) {
                 string += Math.random().toString(36).replace(/[^a-z]+/g, '')
             }
-            result.push(string.substr(0, maxLength))   
+            result.push(string.substr(0, maxLength))
         }
 
         return result
@@ -176,16 +176,16 @@ if (cluster.isMaster) {
             const hrTime = process.hrtime()
             const startTime = hrTime[0] * 1000000 + hrTime[1]
             messages.forEach((message, i) => {
-                cluster.workers[id].send(JSON.stringify({msg: message, count: i}))
+                cluster.workers[id].send(JSON.stringify({ msg: message, count: i }))
             });
 
             cluster.workers[id].on('message', msg => {
                 msg = JSON.parse(msg)
-                if (msg.count >= messages.length-1) {
+                if (msg.count >= messages.length - 1) {
                     const hrTime = process.hrtime()
                     const endTime = hrTime[0] * 1000000 + hrTime[1]
                     cluster.workers[id].removeAllListeners()
-                    resolve(endTime-startTime)
+                    resolve(endTime - startTime)
                 }
             })
         })
@@ -220,11 +220,11 @@ if (cluster.isMaster) {
         if (objMsg.msg === 'giveTime') {
             process.send(new Date().getTime() - objMsg.start)
         } else {
-        const msg = objMsg.msg
-        const splitted = msg.split("")
-        const reverse = splitted.reverse()
-        const reversed = reverse.join("")
-        process.send(JSON.stringify({msg: reversed, count: objMsg.count}))
+            const msg = objMsg.msg
+            const splitted = msg.split("")
+            const reverse = splitted.reverse()
+            const reversed = reverse.join("")
+            process.send(JSON.stringify({ msg: reversed, count: objMsg.count }))
         }
     })
 
@@ -234,6 +234,6 @@ if (cluster.isMaster) {
     console.log('Worker ' + cluster.worker.id + ' is listening');
     process.on('message', (msg) => {
         const objMsg = JSON.parse(msg)
-        process.send(JSON.stringify({msg: objMsg.msg.toUpperCase(), count: objMsg.count}))
+        process.send(JSON.stringify({ msg: objMsg.msg.toUpperCase(), count: objMsg.count }))
     })
 } 
