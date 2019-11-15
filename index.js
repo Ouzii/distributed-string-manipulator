@@ -34,7 +34,7 @@ if (cluster.isMaster) {
 
                 const msgHandler = (msg) => {
                     res.status(200).send(msg)
-                    cluster.removeListener('message', msgHandler)
+                    cluster.workers[req.body.type].removeListener('message', msgHandler)
                 }
 
                 cluster.workers[req.body.type].on('message', msgHandler)
@@ -87,9 +87,9 @@ if (cluster.isMaster) {
 
             cluster.workers[id].send(JSON.stringify({msg: msg}))
 
-            const msgHandler = async (worker, msg) => {
+            const msgHandler = async (msg) => {
                 // console.log('final: ', msg)
-                cluster.removeListener('message', msgHandler)
+                cluster.workers[id].removeListener('message', msgHandler)
                 if (count < 25) {
                     const result = await sendMinimalMessages(id, msg, count + 1)
                     resolve(result)
@@ -118,9 +118,9 @@ if (cluster.isMaster) {
             // console.log('original: ', msg, count, msg.length)
             cluster.workers[id].send(JSON.stringify({msg: msg}))
 
-            const msgHandler = async (worker, msg) => {
+            const msgHandler = async (msg) => {
                 // console.log('final: ', msg)
-                cluster.removeListener('message', msgHandler)
+                cluster.workers[id].removeListener('message', msgHandler)
                 if (count < 50) {
                     const result = await sendMsg(id, msg, count + 1)
                     resolve(result)
@@ -133,13 +133,13 @@ if (cluster.isMaster) {
         })
     }
 
-    app.get('/time', (req, res) => {
+    app.post('/time', (req, res) => {
         const start = new Date().getTime()
 
         cluster.workers[1].send(JSON.stringify({msg: 'giveTime', start}))
         
-        const msgHandler = (worker, msg) => {
-            cluster.removeListener('message', msgHandler)
+        const msgHandler = (msg) => {
+            cluster.workers[1].removeListener('message', msgHandler)
             res.status(200).send(msg.toString()+'ms');
         }
         cluster.workers[1].on('message', msgHandler)
