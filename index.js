@@ -52,6 +52,41 @@ const createTestData = () => {
     return testData
 }
 
+
+
+const formRandomStrings = (maxLength = 100000, amount) => {
+    const result = []
+    for (let i = 0; i < amount; i++) {
+        let string = ""
+        for (let i = 0; i < Math.floor(Math.random() * 99) + 1; i++) {
+            string += Math.random().toString(36).replace(/[^a-z]+/g, '')
+        }
+        result.push(string.substr(0, maxLength))   
+    }
+
+    return result
+}
+
+const sendMessages = (id, messages) => {
+    return new Promise((resolve, reject) => {
+        const hrTime = process.hrtime()
+        const startTime = hrTime[0] * 1000000 + hrTime[1]
+        messages.forEach((message, i) => {
+            cluster.workers[id].send(JSON.stringify({msg: message, count: i}))
+        });
+
+        cluster.workers[id].on('message', msg => {
+            msg = JSON.parse(msg)
+            if (msg.count >= messages.length-1) {
+                const hrTime = process.hrtime()
+                const endTime = hrTime[0] * 1000000 + hrTime[1]
+                cluster.workers[id].removeAllListeners()
+                resolve(endTime-startTime)
+            }
+        })
+    })
+}
+
 // takes request and delegates it
 // to the node that is responsible for the type of the request
 // type 1 requests are delegated to reversing node
@@ -83,11 +118,10 @@ if (cluster.isMaster) {
 
     //What is the average time for sending 50 messages between two nodes (random payload)?
     app.post("/50", async (req, res) => {
-        const typeNumber = parseInt(req.body.type)
-        if (isValid(typeNumber)) {
+        if (isValid(req.body.type)) {
             const maxLength = typeof(req.body.msg) === 'string' ? req.body.msg.length : Number.isInteger(req.body.msg) ? req.body.msg : 20
-            const returned = await notRecursiveSendMsg(req.body.type, formRandomStrings(maxLength, 50))
-            res.status(200).send(returned.toString() + 'ns')
+            const returned = await sendMessages(req.body.type, formRandomStrings(maxLength, 50))
+            res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/50).toString()+'ns ('+(returned/50000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid type');
         }
@@ -95,101 +129,13 @@ if (cluster.isMaster) {
 
     // Counts execute time for 25 empty messages.
     app.post("/min", async (req, res) => {
-        const msg = ""
-
-
-        const start = new Date().getTime()
-        const typeNumber = parseInt(req.body.type)
-        if (isValid(typeNumber)) {
-            const returned = await sendMinimalMessages(req.body.type, msg, 0)
-            const resulttime = new Date().getTime() - start;
-            res.status(200).send(resulttime.toString() + 'ms')
+        if (isValid(req.body.type)) {
+            const returned = await sendMessages(req.body.type, formRandomStrings(0, 25))
+            res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid type');
         }
     })
-
-    // recursively create requests to a node of a type
-    const sendMinimalMessages = (id, msg, count) => {
-        return new Promise((resolve, reject, ) => {
-
-            cluster.workers[id].send(JSON.stringify({ msg: msg }))
-
-            const msgHandler = async (msg) => {
-                cluster.workers[id].removeListener('message', msgHandler)
-                if (count < 25) {
-                    const result = await sendMinimalMessages(id, msg, count + 1)
-                    resolve(result)
-                } else {
-                    resolve(msg)
-                }
-            }
-
-            cluster.workers[id].on('message', msgHandler)
-        })
-    }
-
-
-    const formRandomStrings = (maxLength = 100000, amount) => {
-        const result = []
-        for (let i = 0; i < amount; i++) {
-            let string = ""
-            for (let i = 0; i < Math.floor(Math.random() * 99) + 1; i++) {
-                string += Math.random().toString(36).replace(/[^a-z]+/g, '')
-            }
-            result.push(string.substr(0, maxLength))   
-        }
-
-        return result
-    }
-
-
-
-    const sendMsg = (id, msg, count) => {
-        return new Promise((resolve, reject, ) => {
-            let string = ""
-            for (let i = 0; i < Math.floor(Math.random() * 99) + 1; i++) {
-                string += Math.random().toString(36).replace(/[^a-z]+/g, '')
-            }
-
-            msg = string
-
-            // console.log('original: ', msg, count, msg.length)
-            cluster.workers[id].send(JSON.stringify({ msg: msg }))
-
-            const msgHandler = async (msg) => {
-                cluster.workers[id].removeListener('message', msgHandler)
-                if (count < 50) {
-                    const result = await sendMsg(id, msg, count + 1)
-                    resolve(result)
-                } else {
-                    resolve(msg)
-                }
-            }
-
-            cluster.workers[id].on('message', msgHandler)
-        })
-    }
-
-    const notRecursiveSendMsg = (id, messages) => {
-        return new Promise((resolve, reject) => {
-            const hrTime = process.hrtime()
-            const startTime = hrTime[0] * 1000000 + hrTime[1]
-            messages.forEach((message, i) => {
-                cluster.workers[id].send(JSON.stringify({msg: message, count: i}))
-            });
-
-            cluster.workers[id].on('message', msg => {
-                msg = JSON.parse(msg)
-                if (msg.count >= messages.length-1) {
-                    const hrTime = process.hrtime()
-                    const endTime = hrTime[0] * 1000000 + hrTime[1]
-                    cluster.workers[id].removeAllListeners()
-                    resolve(endTime-startTime)
-                }
-            })
-        })
-    }
 
     app.post('/time', (req, res) => {
         const start = new Date().getTime()
