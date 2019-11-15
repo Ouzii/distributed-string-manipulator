@@ -6,6 +6,7 @@ const cluster = require('cluster')
 const REVERSE_ID = 1
 const UPPERCASE_ID = 2
 
+// request type is 1 or 2
 const isValid = typeNumber => {
     if (!Number.isInteger(typeNumber)) {
         return false
@@ -17,10 +18,11 @@ const isValid = typeNumber => {
     }
 }
 
-
-
+// takes request and delegates it
+// to the node that is responsible for the type of the request
+// type 1 requests are delegated to reversing node
+// type 2 requests are delegated to uppercasing node
 if (cluster.isMaster) {
-
     app.post('/', (req, res) => {
         if (req.body && req.body.type) {
             const typeNumber = parseInt(req.body.type);
@@ -31,7 +33,6 @@ if (cluster.isMaster) {
                 cluster.workers[req.body.type].send(JSON.stringify(data));
 
                 const msgHandler = (msg) => {
-                    console.log(msg)
                     res.status(200).send(msg)
                     cluster.removeListener('message', msgHandler)
                 }
@@ -80,7 +81,7 @@ if (cluster.isMaster) {
         }
     })
 
-
+    // recursively create requests to a node of a type
     const sendMinimalMessages = (id, msg, count) => {
         return new Promise((resolve, reject, ) => {
 
@@ -143,7 +144,7 @@ if (cluster.isMaster) {
         }
         cluster.workers[1].on('message', msgHandler)
     })
-
+    // start app
     app.listen(8080, () => {
         console.log('Listening port 8080')
     })
@@ -152,6 +153,7 @@ if (cluster.isMaster) {
         cluster.fork();
     }
 
+// define reversing node functionality to reverse a msg and returns it
 } else if (cluster.worker.id === REVERSE_ID) {
 
     console.log('Worker ' + cluster.worker.id + ' is listening');
@@ -168,6 +170,7 @@ if (cluster.isMaster) {
         }
     })
 
+// define uppercasing node functionality to uppercase a msg and returns it
 } else if (cluster.worker.id === UPPERCASE_ID) {
 
     console.log('Worker ' + cluster.worker.id + ' is listening');
