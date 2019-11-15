@@ -48,18 +48,14 @@ if (cluster.isMaster) {
     //What is the average time for sending 50 messages between two nodes (random payload)?
     app.post("/50", async (req, res) => {
 
-        const start = new Date().getTime()
+        // const start = new Date().getTime()
         const typeNumber = parseInt(req.body.type)
 
 
         if (isValid(typeNumber)) {
-            const data = {
-                res: res,
-                msg: req.body.msg
-            }
-            const returned = await sendMsg(req.body.type, req.body.msg, 0)
-            const resulttime = new Date().getTime() - start;
-            res.status(200).send(resulttime.toString() + 'ms')
+            const maxLength = typeof(req.body.msg) === 'string' ? req.body.msg.length : Number.isInteger(req.body.msg) ? req.body.msg : 20
+            const returned = await notRecursiveSendMsg(req.body.type, formRandomStrings(maxLength, 50))
+            res.status(200).send(returned.toString() + 'ns')
         } else {
             res.status(400).send('Invalid type');
         }
@@ -88,7 +84,6 @@ if (cluster.isMaster) {
             cluster.workers[id].send(JSON.stringify({msg: msg}))
 
             const msgHandler = async (msg) => {
-                // console.log('final: ', msg)
                 cluster.workers[id].removeListener('message', msgHandler)
                 if (count < 25) {
                     const result = await sendMinimalMessages(id, msg, count + 1)
@@ -103,6 +98,18 @@ if (cluster.isMaster) {
     }
 
 
+    const formRandomStrings = (maxLength = 100000, amount) => {
+        const result = []
+        for (let i = 0; i < amount; i++) {
+            let string = ""
+            for (let i = 0; i < Math.floor(Math.random() * 99) + 1; i++) {
+                string += Math.random().toString(36).replace(/[^a-z]+/g, '')
+            }
+            result.push(string.substr(0, maxLength))   
+        }
+
+        return result
+    }
 
 
 
@@ -114,12 +121,9 @@ if (cluster.isMaster) {
             }
 
             msg = string
-
-            // console.log('original: ', msg, count, msg.length)
             cluster.workers[id].send(JSON.stringify({msg: msg}))
 
             const msgHandler = async (msg) => {
-                // console.log('final: ', msg)
                 cluster.workers[id].removeListener('message', msgHandler)
                 if (count < 50) {
                     const result = await sendMsg(id, msg, count + 1)
@@ -130,6 +134,27 @@ if (cluster.isMaster) {
             }
 
             cluster.workers[id].on('message', msgHandler)
+        })
+    }
+
+    const notRecursiveSendMsg = (id, messages) => {
+        console.log(messages)
+        return new Promise((resolve, reject) => {
+            const hrTime = process.hrtime()
+            const startTime = hrTime[0] * 1000000 + hrTime[1]
+            messages.forEach((message, i) => {
+                cluster.workers[id].send(JSON.stringify({msg: message, count: i}))
+            });
+
+            cluster.workers[id].on('message', msg => {
+                msg = JSON.parse(msg)
+                if (msg.count >= messages.length-1) {
+                    const hrTime = process.hrtime()
+                    const endTime = hrTime[0] * 1000000 + hrTime[1]
+                    cluster.workers[id].removeAllListeners()
+                    resolve(endTime-startTime)
+                }
+            })
         })
     }
 
@@ -166,7 +191,7 @@ if (cluster.isMaster) {
         const splitted = msg.split("")
         const reverse = splitted.reverse()
         const reversed = reverse.join("")
-        process.send(reversed)
+        process.send(JSON.stringify({msg: reversed, count: objMsg.count}))
         }
     })
 
@@ -176,6 +201,6 @@ if (cluster.isMaster) {
     console.log('Worker ' + cluster.worker.id + ' is listening');
     process.on('message', (msg) => {
         const objMsg = JSON.parse(msg)
-        process.send(objMsg.msg.toUpperCase())
+        process.send(JSON.stringify({msg: objMsg.msg.toUpperCase(), count: objMsg.count}))
     })
 } 
