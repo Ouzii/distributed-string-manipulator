@@ -30,7 +30,8 @@ if (cluster.isMaster) {
                 }
                 cluster.workers[req.body.type].send(JSON.stringify(data));
 
-                const msgHandler = (worker, msg) => {
+                const msgHandler = (msg) => {
+                    console.log(msg)
                     res.status(200).send(msg)
                     cluster.removeListener('message', msgHandler)
                 }
