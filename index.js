@@ -18,11 +18,47 @@ const isValid = typeNumber => {
     }
 }
 
+const createTestData = () => {
+
+    let testData = []
+
+    for (let index = 0; index < 50; index++) {
+        let string = ""
+        for (let i = 0; i < Math.floor(Math.random() * 100) + 1; i++) {
+            string += Math.random().toString(36).replace(/[^a-z]+/g, '')
+        }
+
+        for (let index = 0; index < 10; index++) {
+            string += string
+        }
+
+        testData.push(string)
+
+    }
+    console.log('TestData created');
+
+    let temp = 0;
+    testData.forEach(element => {
+        temp += element.length
+        console.log(element.length);
+
+    })
+
+    temp = temp / testData.length
+
+    console.log('Average length ', temp);
+
+
+    return testData
+}
+
 // takes request and delegates it
 // to the node that is responsible for the type of the request
 // type 1 requests are delegated to reversing node
 // type 2 requests are delegated to uppercasing node
 if (cluster.isMaster) {
+    const testData = createTestData()
+
     app.post('/', (req, res) => {
         if (req.body && req.body.type) {
             const typeNumber = parseInt(req.body.type);
@@ -85,7 +121,7 @@ if (cluster.isMaster) {
     const sendMinimalMessages = (id, msg, count) => {
         return new Promise((resolve, reject, ) => {
 
-            cluster.workers[id].send(JSON.stringify({msg: msg}))
+            cluster.workers[id].send(JSON.stringify({ msg: msg }))
 
             const msgHandler = async (msg) => {
                 // console.log('final: ', msg)
@@ -116,7 +152,7 @@ if (cluster.isMaster) {
             msg = string
 
             // console.log('original: ', msg, count, msg.length)
-            cluster.workers[id].send(JSON.stringify({msg: msg}))
+            cluster.workers[id].send(JSON.stringify({ msg: msg }))
 
             const msgHandler = async (msg) => {
                 // console.log('final: ', msg)
@@ -136,11 +172,11 @@ if (cluster.isMaster) {
     app.post('/time', (req, res) => {
         const start = new Date().getTime()
 
-        cluster.workers[1].send(JSON.stringify({msg: 'giveTime', start}))
-        
+        cluster.workers[1].send(JSON.stringify({ msg: 'giveTime', start }))
+
         const msgHandler = (msg) => {
             cluster.workers[1].removeListener('message', msgHandler)
-            res.status(200).send(msg.toString()+'ms');
+            res.status(200).send(msg.toString() + 'ms');
         }
         cluster.workers[1].on('message', msgHandler)
     })
@@ -153,24 +189,24 @@ if (cluster.isMaster) {
         cluster.fork();
     }
 
-// define reversing node functionality to reverse a msg and returns it
+    // define reversing node functionality to reverse a msg and returns it
 } else if (cluster.worker.id === REVERSE_ID) {
 
     console.log('Worker ' + cluster.worker.id + ' is listening');
     process.on('message', (msg) => {
         const objMsg = JSON.parse(msg)
         if (objMsg.msg === 'giveTime') {
-            process.send(new Date().getTime()-objMsg.start)
+            process.send(new Date().getTime() - objMsg.start)
         } else {
-        const msg = objMsg.msg
-        const splitted = msg.split("")
-        const reverse = splitted.reverse()
-        const reversed = reverse.join("")
-        process.send(reversed)
+            const msg = objMsg.msg
+            const splitted = msg.split("")
+            const reverse = splitted.reverse()
+            const reversed = reverse.join("")
+            process.send(reversed)
         }
     })
 
-// define uppercasing node functionality to uppercase a msg and returns it
+    // define uppercasing node functionality to uppercase a msg and returns it
 } else if (cluster.worker.id === UPPERCASE_ID) {
 
     console.log('Worker ' + cluster.worker.id + ' is listening');
