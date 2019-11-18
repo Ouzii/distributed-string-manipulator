@@ -1,13 +1,17 @@
-# distributed-roshanbo
+## Distributed Systems 2019 | Task 1 | Distributed string manipulator
+
 https://github.com/Ouzii/distributed-roshanbo
 
+By: Oskari Laaja, Marko Koskinen, Kristian Valto, Tommi Viiala
+
+
 ### How to install
-- Install node.js
-- git clone git@github.com:Ouzii/distributed-roshanbo.git
+- Install node.js (at least version 10.7.0)
+- git clone git@github.com:Ouzii/distributed-string-manipulator.git
 - cd distributed-roshanbo
 - npm install
 - npm run start
-- run systemTest.sh for answers of question 5 i-iii. i). What is the average time for sending 50 messages between two nodes (random payload)? ii). Choose 3 different fixed message sizes (payloads for min, average, max), what is the average time when sending 25 in each case? iii). Choose a unique payload, e.g., average size, and then measure the inter arrival rate between messages?
+- You can test the response times of the system by running the script file systemTest.sh (More usage instructions in the document below)
 
 
 ### Report
