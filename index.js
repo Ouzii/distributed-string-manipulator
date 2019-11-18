@@ -23,30 +23,6 @@ const isValid = typeNumber => {
     }
 }
 
-const createTestData = (maxLength, amount) => {
-    let testData = []
-    for (let index = 0; index < amount; index++) {
-        let string = ""
-        for (let i = 0; i < Math.floor(Math.random() * 50) + 1; i++) {
-            string += Math.random().toString(36).replace(/[^a-z]+/g, '')
-        }
-
-        for (let index = 0; index < 15; index++) {
-            string += string
-        }
-        testData.push(string.substr(0, maxLength))
-    }
-    console.log('TestData created');
-    let temp = 0;
-    testData.forEach(element => {
-        temp += element.length
-    })
-    temp = temp / testData.length
-    console.log('Average length ', temp);
-    return testData
-}
-
-
 
 const formRandomStrings = (maxLength = 100000, amount) => {
     const result = []
@@ -55,9 +31,11 @@ const formRandomStrings = (maxLength = 100000, amount) => {
         for (let i = 0; i < Math.floor(Math.random() * 99) + 1; i++) {
             string += Math.random().toString(36).replace(/[^a-z]+/g, '')
         }
+        for (let index = 0; index < 15; index++) {
+            string += string
+        }
         result.push(string.substr(0, maxLength))   
     }
-
     return result
 }
 
@@ -85,7 +63,6 @@ const sendMessages = (id, messages) => {
 // type 1 requests are delegated to reversing node
 // type 2 requests are delegated to uppercasing node
 if (cluster.isMaster) {
-    const testData = createTestData(100000, 50)
     // Keeps memory of worker ids
     const workerIds = {1: 1, 2: 2}
 
@@ -132,6 +109,16 @@ if (cluster.isMaster) {
     app.post("/max", async (req, res) => {
         if (isValid(req.body.type)) {
             const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(100000, 25))
+            res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
+        } else {
+            res.status(400).send('Invalid request body\n');
+        }
+    })
+
+    // Counts execution time for 25 messages of avg length (100).
+    app.post("/avg", async (req, res) => {
+        if (isValid(req.body.type)) {
+            const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(100, 25))
             res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid request body\n');
@@ -209,7 +196,7 @@ if (cluster.isMaster) {
             const splitted = msg.split("")
             const reverse = splitted.reverse()
             const reversed = reverse.join("")
-            console.log('Worker 1 sent reversed', msg, 'string to master as', reversed)
+            console.log('Worker 1 sent reversed string to master')
             process.send({ msg: reversed, count: objMsg.count })
         }
     })
@@ -219,7 +206,7 @@ if (cluster.isMaster) {
     console.log('Worker', process.env.name, 'with pid', process.pid, 'is listening')
     process.on('message', (msg) => {
         const objMsg = typeof(msg) === 'string' ? JSON.parse(msg) : msg
-        console.log('Worker 2 sent uppercased', objMsg.msg, 'string to master as', objMsg.msg.toUpperCase())
+        console.log('Worker 2 sent uppercased string to master')
         process.send({ msg: objMsg.msg.toUpperCase(), count: objMsg.count })
     })
 } else {
