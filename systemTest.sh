@@ -8,7 +8,7 @@ echo $RANDOM_TYPE
 ./random50.sh "$RANDOM_TYPE" "$RANDOM_LENGTH"
 echo ""
 
-echo "Choose 3 different fixed message sizes (payloads for min, average, max), what is the average time when sending 25 in each case?"
+echo "ii) Choose 3 different fixed message sizes (payloads for min, average, max), what is the average time when sending 25 in each case?"
 echo "Message payload sizes 1, 100, 100 000"
 echo "min payload time with reverse:"
 curl -d '{"type":1}' -H "Content-Type: application/json" -X POST http://localhost:8080/min
