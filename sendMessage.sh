@@ -6,7 +6,7 @@
 
 
 set -e
-
-RES=$(curl -d '{"type":"'"$1"'", "msg":"'$2'"}' -H "Content-Type: application/json" -X POST http://localhost:8080)
+BODY='{"type":"'"$1"'", "msg":"'$2'"}'
+RES="$(curl -d "$BODY" -H "Content-Type: application/json" -X POST http://localhost:8080)"
 
 echo $RES

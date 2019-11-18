@@ -18,9 +18,9 @@ const isValid = typeNumber => {
     } else {
         return false
     }
-} catch (error) {
-    return false
-}
+    } catch (error) {
+        return false
+    }
 }
 
 const createTestData = (maxLength, amount) => {
@@ -118,10 +118,20 @@ if (cluster.isMaster) {
         }
     })
 
-    // Counts execute time for 25 empty messages.
+    // Counts execution time for 25 empty messages.
     app.post("/min", async (req, res) => {
         if (isValid(req.body.type)) {
             const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(0, 25))
+            res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
+        } else {
+            res.status(400).send('Invalid request body\n');
+        }
+    })
+
+    // Counts execution time for 25 messages of max length (100000).
+    app.post("/max", async (req, res) => {
+        if (isValid(req.body.type)) {
+            const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(100000, 25))
             res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid request body\n');
