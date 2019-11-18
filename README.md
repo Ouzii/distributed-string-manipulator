@@ -5,7 +5,7 @@ https://github.com/Ouzii/distributed-roshanbo
 - Install node.js
 - git clone git@github.com:Ouzii/distributed-roshanbo.git
 - cd distributed-roshanbo
-- npm ci
+- npm i
 - npm run start
 - run start.sh and follow the instructions
 

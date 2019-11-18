@@ -3,8 +3,8 @@ const app = express()
 app.use(express.json());
 
 const cluster = require('cluster')
-const REVERSE_ID = 1
-const UPPERCASE_ID = 2
+let REVERSE_ID = 1
+let UPPERCASE_ID = 2
 
 // request type is 1 or 2
 const isValid = typeNumber => {
@@ -86,24 +86,23 @@ const sendMessages = (id, messages) => {
 // type 2 requests are delegated to uppercasing node
 if (cluster.isMaster) {
     const testData = createTestData(100000, 50)
+    // keeps memory of worker ids
+    const workerIds = {1: 1, 2: 2}
 
     app.post('/', (req, res) => {
         if (req.body && req.body.type) {
-            console.log(req.body.type)
             if (isValid(req.body.type) && (typeof(req.body.msg) === 'string' || req.body.msg instanceof String)) {
-                cluster.workers[req.body.type].send({msg: req.body.msg});
-
+                cluster.workers[workerIds[req.body.type]].send({msg: req.body.msg});
                 const msgHandler = (msg) => {
                     res.status(200).send(msg.msg + '\n')
-                    cluster.workers[req.body.type].removeListener('message', msgHandler)
+                    cluster.workers[workerIds[req.body.type]].removeListener('message', msgHandler)
                 }
-
-                cluster.workers[req.body.type].on('message', msgHandler)
+                cluster.workers[workerIds[req.body.type]].on('message', msgHandler)
             } else {
                 res.status(400).send('Invalid request body\n');
             }
         } else {
-            res.status(400).send('Invalid request body')
+            res.status(400).send('Invalid request body\n')
         }
     })
 
@@ -112,7 +111,7 @@ if (cluster.isMaster) {
     app.post("/50", async (req, res) => {
         if (isValid(req.body.type)) {
             const maxLength = (typeof(req.body.msg) === 'string' || req.body.msg instanceof String) ? req.body.msg.length : Number.isInteger(req.body.msg) ? req.body.msg : 20
-            const returned = await sendMessages(req.body.type, formRandomStrings(maxLength, 50))
+            const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(maxLength, 50))
             res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/50).toString()+'ns ('+(returned/50000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid request body\n');
@@ -122,7 +121,7 @@ if (cluster.isMaster) {
     // Counts execute time for 25 empty messages.
     app.post("/min", async (req, res) => {
         if (isValid(req.body.type)) {
-            const returned = await sendMessages(req.body.type, formRandomStrings(0, 25))
+            const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(0, 25))
             res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid request body\n');
@@ -133,12 +132,12 @@ if (cluster.isMaster) {
     app.post('/time', (req, res) => {
         const hrTime = process.hrtime()
         const start = hrTime[0] * 1000000 + hrTime[1]
-        cluster.workers[1].send({ msg: 'giveTime', start })
+        cluster.workers[workerIds[1]].send({ msg: 'giveTime', start })
         const msgHandler = (msg) => {
-            cluster.workers[1].removeListener('message', msgHandler)
+            cluster.workers[workerIds[1]].removeListener('message', msgHandler)
             res.status(200).send('Time from master to worker: '+msg.toString() + 'ns ('+msg/1000000+'ms)\n');
         }
-        cluster.workers[1].on('message', msgHandler)
+        cluster.workers[workerIds[1]].on('message', msgHandler)
     })
 
     // start app
@@ -146,13 +145,28 @@ if (cluster.isMaster) {
         console.log('Listening port 8080')
     })
 
-    for (let i = 0; i < 2; i++) {
-        cluster.fork();
+    for (let i = 1; i <= 2; i++) {
+        cluster.fork({name: i});
     }
 
+    // Restart workers on death
+    cluster.on('exit', (worker, code, signal) => {
+        if (worker.exitedAfterDisconnect === false) {
+            console.log('Worker disconnected. Restarting...')
+
+            if (worker.id === workerIds[REVERSE_ID]) {
+                const worker = cluster.fork({name: 1})
+                workerIds[1] = worker.id
+            } else if (worker.id === workerIds[UPPERCASE_ID]){
+                const worker = cluster.fork({name: 2})
+                workerIds[2] = worker.id
+            }
+        }
+    })
+
     // define reversing node functionality to reverse a msg and returns it
-} else if (cluster.worker.id === REVERSE_ID) {
-    console.log('Worker ' + cluster.worker.id + ' is listening');
+} else if (process.env.name == REVERSE_ID) {
+    console.log('Worker', process.env.name, 'with pid', process.pid, 'is listening')
     process.on('message', (msg) => {
         const hrTime = process.hrtime()
         const end = hrTime[0] * 1000000 + hrTime[1]
@@ -169,10 +183,12 @@ if (cluster.isMaster) {
     })
 
     // define uppercasing node functionality to uppercase a msg and returns it
-} else if (cluster.worker.id === UPPERCASE_ID) {
-    console.log('Worker ' + cluster.worker.id + ' is listening');
+} else if (process.env.name == UPPERCASE_ID) {
+    console.log('Worker', process.env.name, 'with pid', process.pid, 'is listening')
     process.on('message', (msg) => {
         const objMsg = typeof(msg) === 'string' ? JSON.parse(msg) : msg
         process.send({ msg: objMsg.msg.toUpperCase(), count: objMsg.count })
     })
-} 
+} else {
+    console.log('Worker', process.env.name, 'is alive with pid', process.pid, 'but doesn\'t have any functions')
+}
