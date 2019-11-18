@@ -1,5 +1,9 @@
-# distributed-roshanbo
+## Distributed Systems 2019 | Task 1 | Distributed string manipulator
+
 https://github.com/Ouzii/distributed-roshanbo
+
+By: Oskari Laaja, Marko Koskinen, Kristian Valto, Tommi Viiala
+
 
 ### How to install
 - Install node.js (at least version 10.7.0)
