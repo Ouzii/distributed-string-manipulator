@@ -149,20 +149,39 @@ if (cluster.isMaster) {
         cluster.fork({name: i});
     }
 
-    // Restart workers on death
+    // Restart workers on death or log if killed on purpose
     cluster.on('exit', (worker, code, signal) => {
         if (worker.exitedAfterDisconnect === false) {
-            console.log('Worker disconnected. Restarting...')
-
+            restartWorker(worker.id)
+        } else {
             if (worker.id === workerIds[REVERSE_ID]) {
-                const worker = cluster.fork({name: 1})
-                workerIds[1] = worker.id
-            } else if (worker.id === workerIds[UPPERCASE_ID]){
-                const worker = cluster.fork({name: 2})
-                workerIds[2] = worker.id
+                console.log('Worker 1 killed.')
+            } else if (worker.id === workerIds[UPPERCASE_ID]) {
+                console.log('worker 2 killed.')
+            } else {
+                console.log('Unknown worker killed.')
             }
         }
     })
+
+    const restartWorker = id => {
+        let worker = {}
+        switch(id) {
+            case workerIds[REVERSE_ID]:
+                    console.log('Worker 1 disconnected. Restarting...')
+                    worker = cluster.fork({name: 1})
+                    workerIds[1] = worker.id
+                    return
+            case workerIds[UPPERCASE_ID]:
+                    console.log('Worker 2 disconnected. Restarting...')
+                    worker = cluster.fork({name: 2})
+                    workerIds[2] = worker.id
+                    return
+            default:
+                    console.log('Unknown worker disconnected.')
+                return
+        }
+    }
 
     // define reversing node functionality to reverse a msg and returns it
 } else if (process.env.name == REVERSE_ID) {
