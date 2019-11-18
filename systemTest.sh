@@ -9,11 +9,11 @@ echo $RANDOM_TYPE
 echo ""
 
 echo "Choose 3 different fixed message sizes (payloads for min, average, max), what is the average time when sending 25 in each case?"
-echo "Message payload sizes 0, 100, 100 000"
+echo "Message payload sizes 1, 100, 100 000"
 echo "min payload time with reverse:"
 curl -d '{"type":1}' -H "Content-Type: application/json" -X POST http://localhost:8080/min
 echo "min payload time with uppercase:"
-curl -d '{"type":2}' -H "Content-Type: application/json" -X POST http://localhost:8080/max
+curl -d '{"type":2}' -H "Content-Type: application/json" -X POST http://localhost:8080/min
 echo ""
 echo "avg payload time with reverse:"
 curl -d '{"type":1}' -H "Content-Type: application/json" -X POST http://localhost:8080/avg

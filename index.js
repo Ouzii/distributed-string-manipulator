@@ -41,18 +41,17 @@ const formRandomStrings = (maxLength = 100000, amount) => {
 
 const sendMessages = (id, messages) => {
     return new Promise((resolve, reject) => {
-        const hrTime = process.hrtime()
-        const startTime = hrTime[0] * 1000000 + hrTime[1]
+        const startTime = process.hrtime.bigint()
+        console.log(startTime)
         messages.forEach((message, i) => {
             cluster.workers[id].send({msg: message, count: i})
         });
 
         cluster.workers[id].on('message', msg => {
             if (msg.count >= messages.length-1) {
-                const hrTime = process.hrtime()
-                const endTime = hrTime[0] * 1000000 + hrTime[1]
+                const endTime = process.hrtime.bigint()
                 cluster.workers[id].removeAllListeners()
-                resolve(endTime-startTime)
+                resolve(Number.parseFloat((endTime-startTime).toString()))
             }
         })
     })
@@ -89,7 +88,7 @@ if (cluster.isMaster) {
         if (isValid(req.body.type)) {
             const maxLength = (typeof(req.body.msg) === 'string' || req.body.msg instanceof String) ? req.body.msg.length : Number.isInteger(req.body.msg) ? req.body.msg : 20
             const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(maxLength, 50))
-            res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/50).toString()+'ns ('+(returned/50000000)+'ms)\n')
+            res.status(200).send('Time spent: '+returned + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/50)+'ns ('+(returned/50000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid request body\n');
         }
@@ -98,8 +97,8 @@ if (cluster.isMaster) {
     // Counts execution time for 25 empty messages.
     app.post("/min", async (req, res) => {
         if (isValid(req.body.type)) {
-            const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(0, 25))
-            res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
+            const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(1, 25))
+            res.status(200).send('Time spent: '+returned + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25)+'ns ('+(returned/25000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid request body\n');
         }
@@ -109,7 +108,7 @@ if (cluster.isMaster) {
     app.post("/max", async (req, res) => {
         if (isValid(req.body.type)) {
             const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(100000, 25))
-            res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
+            res.status(200).send('Time spent: '+returned + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25)+'ns ('+(returned/25000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid request body\n');
         }
@@ -119,7 +118,7 @@ if (cluster.isMaster) {
     app.post("/avg", async (req, res) => {
         if (isValid(req.body.type)) {
             const returned = await sendMessages(workerIds[req.body.type], formRandomStrings(100, 25))
-            res.status(200).send('Time spent: '+returned.toString() + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25).toString()+'ns ('+(returned/25000000)+'ms)\n')
+            res.status(200).send('Time spent: '+returned + 'ns ('+returned/1000000+'ms), avg time of one operation: '+(returned/25)+'ns ('+(returned/25000000)+'ms)\n')
         } else {
             res.status(400).send('Invalid request body\n');
         }
@@ -127,12 +126,13 @@ if (cluster.isMaster) {
 
     // Counts time from master to worker
     app.post('/time', (req, res) => {
-        const hrTime = process.hrtime()
-        const start = hrTime[0] * 1000000 + hrTime[1]
-        cluster.workers[workerIds[1]].send({ msg: 'giveTime', start })
+        const start = process.hrtime.bigint()
+        cluster.workers[workerIds[1]].send({ msg: 'giveTime', start: start.toString() })
         const msgHandler = (msg) => {
+            msg = Number.parseFloat(msg.result)
+            const avg = msg/1000000
             cluster.workers[workerIds[1]].removeListener('message', msgHandler)
-            res.status(200).send('Time from master to worker: '+msg.toString() + 'ns ('+msg/1000000+'ms)\n');
+            res.status(200).send('Time from master to worker: '+ msg + 'ns ('+avg+'ms)\n');
         }
         cluster.workers[workerIds[1]].on('message', msgHandler)
     })
@@ -185,12 +185,11 @@ if (cluster.isMaster) {
 } else if (process.env.name == REVERSE_ID) {
     console.log('Worker', process.env.name, 'with pid', process.pid, 'is listening')
     process.on('message', (msg) => {
-        const hrTime = process.hrtime()
-        const end = hrTime[0] * 1000000 + hrTime[1]
+        const end = process.hrtime.bigint()
         const objMsg = typeof(msg) === 'string' ? JSON.parse(msg) : msg
         if (objMsg.msg === 'giveTime') {
             console.log('Worker 1 sent time to master')
-            process.send(end - objMsg.start)
+            process.send({result: (end - BigInt(objMsg.start)).toString()})
         } else {
             const msg = objMsg.msg
             const splitted = msg.split("")
