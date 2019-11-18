@@ -3,7 +3,7 @@ https://github.com/Ouzii/distributed-roshanbo
 
 ### How to install
 - Install node.js
-- git clone git@github.com:Ouzii/distributed-roshanbo.git
+- git clone git@github.com:Ouzii/distributed-string-manipulator.git
 - cd distributed-roshanbo
 - npm install
 - npm run start
