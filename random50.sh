@@ -5,8 +5,9 @@
 # example usage ./random50.sh 1
 
 set -e
-
 NEW_UUID=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w "$2" | head -n 1)
-RES=$(curl -d '{"type":"'"$1"'"}' -H "Content-Type: application/json" -X POST http://localhost:8080/50)
+BODY='{"type":"'"$1"'", "msg":"'$NEW_UUID'"}'
+echo $BODY
+RES=$(curl -d "$BODY" -H "Content-Type: application/json" -X POST http://localhost:8080/50)
 
 echo $RES
