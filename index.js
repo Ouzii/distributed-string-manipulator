@@ -6,7 +6,7 @@ const cluster = require('cluster')
 let REVERSE_ID = 1
 let UPPERCASE_ID = 2
 
-// request type is 1 or 2
+// Request type is 1 or 2
 const isValid = typeNumber => {
     try {
     typeNumber = Number.parseInt(typeNumber)
@@ -80,13 +80,13 @@ const sendMessages = (id, messages) => {
     })
 }
 
-// takes request and delegates it
+// Takes request and delegates it
 // to the node that is responsible for the type of the request
 // type 1 requests are delegated to reversing node
 // type 2 requests are delegated to uppercasing node
 if (cluster.isMaster) {
     const testData = createTestData(100000, 50)
-    // keeps memory of worker ids
+    // Keeps memory of worker ids
     const workerIds = {1: 1, 2: 2}
 
     app.post('/', (req, res) => {
@@ -107,7 +107,7 @@ if (cluster.isMaster) {
     })
 
 
-    //What is the average time for sending 50 messages between two nodes (random payload)?
+    // What is the average time for sending 50 messages between two nodes (random payload)?
     app.post("/50", async (req, res) => {
         if (isValid(req.body.type)) {
             const maxLength = (typeof(req.body.msg) === 'string' || req.body.msg instanceof String) ? req.body.msg.length : Number.isInteger(req.body.msg) ? req.body.msg : 20
@@ -140,7 +140,7 @@ if (cluster.isMaster) {
         cluster.workers[workerIds[1]].on('message', msgHandler)
     })
 
-    // start app
+    // Start app
     app.listen(8080, () => {
         console.log('Listening port 8080')
     })
@@ -164,17 +164,18 @@ if (cluster.isMaster) {
         }
     })
 
+    // Restart worker based on its id
     const restartWorker = id => {
         let worker = {}
         switch(id) {
             case workerIds[REVERSE_ID]:
                     console.log('Worker 1 disconnected. Restarting...')
-                    worker = cluster.fork({name: 1})
+                    worker = cluster.fork({name: REVERSE_ID})
                     workerIds[1] = worker.id
                     return
             case workerIds[UPPERCASE_ID]:
                     console.log('Worker 2 disconnected. Restarting...')
-                    worker = cluster.fork({name: 2})
+                    worker = cluster.fork({name: UPPERCASE_ID})
                     workerIds[2] = worker.id
                     return
             default:
@@ -191,12 +192,14 @@ if (cluster.isMaster) {
         const end = hrTime[0] * 1000000 + hrTime[1]
         const objMsg = typeof(msg) === 'string' ? JSON.parse(msg) : msg
         if (objMsg.msg === 'giveTime') {
+            console.log('Worker 1 sent time to master')
             process.send(end - objMsg.start)
         } else {
             const msg = objMsg.msg
             const splitted = msg.split("")
             const reverse = splitted.reverse()
             const reversed = reverse.join("")
+            console.log('Worker 1 sent reversed', msg, 'string to master as', reversed)
             process.send({ msg: reversed, count: objMsg.count })
         }
     })
@@ -206,6 +209,7 @@ if (cluster.isMaster) {
     console.log('Worker', process.env.name, 'with pid', process.pid, 'is listening')
     process.on('message', (msg) => {
         const objMsg = typeof(msg) === 'string' ? JSON.parse(msg) : msg
+        console.log('Worker 2 sent uppercased', objMsg.msg, 'string to master as', objMsg.msg.toUpperCase())
         process.send({ msg: objMsg.msg.toUpperCase(), count: objMsg.count })
     })
 } else {
