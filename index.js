@@ -6,7 +6,8 @@ const cluster = require('cluster')
 let REVERSE_ID = 1
 let UPPERCASE_ID = 2
 
-// Request type is 1 or 2
+// Valid request type is 1 or 2
+// Checks that typeNumber is 1 or 2 and returns true if it. Else return false.
 const isValid = typeNumber => {
     try {
     typeNumber = Number.parseInt(typeNumber)
@@ -23,8 +24,10 @@ const isValid = typeNumber => {
     }
 }
 
-
-const formRandomStrings = (maxLength = 100000, amount) => {
+// Forms random string into an array and returns it.
+// Length defines length of random string.
+// Amount defines how many random string are made into array.
+const formRandomStrings = (length = 100000, amount) => {
     const result = []
     for (let i = 0; i < amount; i++) {
         let string = ""
@@ -34,11 +37,13 @@ const formRandomStrings = (maxLength = 100000, amount) => {
         for (let index = 0; index < 15; index++) {
             string += string
         }
-        result.push(string.substr(0, maxLength))   
+        result.push(string.substr(0, length))   
     }
     return result
 }
 
+// Send messages to a slave and times them.
+// Returns promise which counts the time spent on requests.
 const sendMessages = (id, messages) => {
     return new Promise((resolve, reject) => {
         const startTime = process.hrtime.bigint()
@@ -57,10 +62,9 @@ const sendMessages = (id, messages) => {
     })
 }
 
-// Takes request and delegates it
-// to the node that is responsible for the type of the request
-// type 1 requests are delegated to reversing node
-// type 2 requests are delegated to uppercasing node
+// Takes request and delegates it to the node that is responsible for the type of the request.
+// Type 1 requests are delegated to reversing node.
+// Type 2 requests are delegated to uppercasing node.
 if (cluster.isMaster) {
     // Keeps memory of worker ids
     const workerIds = {1: 1, 2: 2}
@@ -82,7 +86,7 @@ if (cluster.isMaster) {
         }
     })
 
-
+    // Test endpoint
     // What is the average time for sending 50 messages between two nodes (random payload)?
     app.post("/50", async (req, res) => {
         if (isValid(req.body.type)) {
@@ -94,6 +98,7 @@ if (cluster.isMaster) {
         }
     })
 
+    // Test endpoint
     // Counts execution time for 25 empty messages.
     app.post("/min", async (req, res) => {
         if (isValid(req.body.type)) {
@@ -104,6 +109,7 @@ if (cluster.isMaster) {
         }
     })
 
+    // Test endpoint
     // Counts execution time for 25 messages of max length (100000).
     app.post("/max", async (req, res) => {
         if (isValid(req.body.type)) {
@@ -114,6 +120,7 @@ if (cluster.isMaster) {
         }
     })
 
+    // Test endpoint
     // Counts execution time for 25 messages of avg length (100).
     app.post("/avg", async (req, res) => {
         if (isValid(req.body.type)) {
@@ -124,6 +131,7 @@ if (cluster.isMaster) {
         }
     })
 
+    // Test endpoint
     // Counts time from master to worker
     app.post('/time', (req, res) => {
         const start = process.hrtime.bigint()
@@ -146,7 +154,7 @@ if (cluster.isMaster) {
         cluster.fork({name: i});
     }
 
-    // Restart workers on death or log if killed on purpose
+    // Restart workers on unexpected death or logs the event if killed on purpose.
     cluster.on('exit', (worker, code, signal) => {
         if (worker.exitedAfterDisconnect === false) {
             restartWorker(worker.id)
@@ -161,7 +169,7 @@ if (cluster.isMaster) {
         }
     })
 
-    // Restart worker based on its id
+    // Restart worker based on its id.
     const restartWorker = id => {
         let worker = {}
         switch(id) {
@@ -181,7 +189,7 @@ if (cluster.isMaster) {
         }
     }
 
-    // define reversing node functionality to reverse a msg and returns it
+    // Define reversing node functionality to reverse a msg and returns it.
 } else if (process.env.name == REVERSE_ID) {
     console.log('Worker', process.env.name, 'with pid', process.pid, 'is listening')
     process.on('message', (msg) => {
@@ -200,7 +208,7 @@ if (cluster.isMaster) {
         }
     })
 
-    // define uppercasing node functionality to uppercase a msg and returns it
+    // Defines uppercasing node functionality to uppercase a msg and returns it.
 } else if (process.env.name == UPPERCASE_ID) {
     console.log('Worker', process.env.name, 'with pid', process.pid, 'is listening')
     process.on('message', (msg) => {
