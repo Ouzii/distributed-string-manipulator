@@ -8,8 +8,11 @@ let UPPERCASE_ID = 2
 
 // Valid request type is 1 or 2
 // Checks that typeNumber is 1 or 2 and returns true if it. Else return false.
-const isValid = typeNumber => {
+const isValid = (typeNumber, message) => {
     try {
+    if (message.length > 100000) {
+        return false
+    }
     typeNumber = Number.parseInt(typeNumber)
     if (!Number.isInteger(typeNumber)) {
         return false
@@ -71,7 +74,7 @@ if (cluster.isMaster) {
 
     app.post('/', (req, res) => {
         if (req.body && req.body.type) {
-            if (isValid(req.body.type) && (typeof(req.body.msg) === 'string' || req.body.msg instanceof String)) {
+            if (isValid(req.body.type, req.body.msg) && (typeof(req.body.msg) === 'string' || req.body.msg instanceof String)) {
                 cluster.workers[workerIds[req.body.type]].send({msg: req.body.msg});
                 const msgHandler = (msg) => {
                     res.status(200).send(msg.msg + '\n')
