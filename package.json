@@ -20,7 +20,7 @@
   "homepage": "https://github.com/Ouzii/distributed-roshanbo#readme",
   "dependencies": {
     "cluster": "^0.7.7",
-    "express": "^4.17.1"
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "nodemon": "^1.19.4"
